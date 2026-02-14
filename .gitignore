@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# production build
+build/
+
+# environment variables (CRITICAL)
+.env
+.env*.local
+
+# vercel
+.vercel
+
+# database (local SQLite only)
+*.db
+*.db-journal
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+
+# TypeScript
+*.tsbuildinfo
+
+# coverage
+coverage/

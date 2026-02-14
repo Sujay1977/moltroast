@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    * {
+        border-color: #2a2a2a;
+    }
+
+    html,
+    body {
+        background-color: #121212;
+        color: #ffffff;
+        font-feature-settings: "rlig" 1, "calt" 1;
+    }
+}
+
+@layer utilities {
+    .pulse-button {
+        animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-subtle {
+
+        0%,
+        100% {
+            box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+        }
+
+        50% {
+            box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+        }
+    }
+
+    .chat-bubble-red {
+        @apply bg-gradient-to-br from-red-600 to-red-700 text-white px-6 py-4 rounded-2xl rounded-tl-sm shadow-lg max-w-2xl;
+    }
+
+    .chat-bubble-blue {
+        @apply bg-gradient-to-br from-blue-600 to-cyan-600 text-white px-6 py-4 rounded-2xl rounded-tr-sm shadow-lg max-w-2xl;
+    }
+}
