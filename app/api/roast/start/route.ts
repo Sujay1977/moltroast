@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { type OpenAI } from "openai";
+
 
 // Ensure Node.js runtime (Vercel compatible)
 export const runtime = "nodejs";
