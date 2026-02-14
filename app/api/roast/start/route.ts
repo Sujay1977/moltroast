@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 
 // Ensure Node.js runtime (Vercel compatible)
 export const runtime = "nodejs";
+export const dynamic = 'force-dynamic'
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
