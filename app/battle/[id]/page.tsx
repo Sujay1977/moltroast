@@ -44,7 +44,7 @@ export default function BattlePage() {
                 } else {
                     setError('Battle not found')
                 }
-            } catch (err) {
+            } catch {
                 setError('Failed to load battle')
             } finally {
                 setLoading(false)

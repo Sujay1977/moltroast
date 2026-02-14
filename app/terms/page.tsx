@@ -18,7 +18,7 @@ export default function TermsPage() {
                 <section>
                     <h2 className="text-2xl font-bold text-white mb-3">2. Service Usage</h2>
                     <p>
-                        MoltRoast is provided "as is" for entertainment purposes. AI-generated content may be
+                        MoltRoast is provided &quot;as is&quot; for entertainment purposes. AI-generated content may be
                         offensive or inaccurate. Use at your own discretion.
                     </p>
                 </section>
@@ -35,7 +35,7 @@ export default function TermsPage() {
                     <h2 className="text-2xl font-bold text-white mb-3">4. Prohibited Use</h2>
                     <p>
                         Do not use MoltRoast for illegal activities, harassment, or to generate content that
-                        violates others' rights. We reserve the right to remove content and ban users.
+                        violates others&apos; rights. We reserve the right to remove content and ban users.
                     </p>
                 </section>
 

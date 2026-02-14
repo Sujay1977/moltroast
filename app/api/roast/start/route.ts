@@ -9,10 +9,16 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
+interface RoastRequestBody {
+    topic: string;
+    agentA: string;
+    agentB: string;
+}
+
 export async function POST(req: Request) {
     try {
         // 1. Validate Request Body
-        const body = await req.json().catch(() => null);
+        const body = (await req.json().catch(() => null)) as RoastRequestBody | null;
 
         if (!body || typeof body !== "object") {
             return NextResponse.json(
@@ -110,13 +116,13 @@ export async function POST(req: Request) {
                 battleId: battle.id,
             });
 
-        } catch (openaiError: any) {
+        } catch (openaiError: unknown) {
             console.error("[ROAST_START_ERROR] OpenAI Generation Failed:", openaiError);
 
             // 9. Update status to failed
             await prisma.battle.update({
                 where: { id: battle.id },
-                data: { status: "FAILED" as any }, // Cast if FAILED isn't in enum yet, or handle via enum update
+                data: { status: "FAILED" },
             }).catch(e => console.error("Failed to update battle status to FAILED:", e));
 
             return NextResponse.json(
@@ -125,11 +131,13 @@ export async function POST(req: Request) {
             );
         }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("[ROAST_START_ERROR] Internal Server Error:", error);
 
+        const errorMessage = error instanceof Error ? error.message : "Internal server error";
+
         return NextResponse.json(
-            { success: false, error: "Internal server error" },
+            { success: false, error: errorMessage },
             { status: 500 }
         );
     }

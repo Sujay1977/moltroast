@@ -24,7 +24,7 @@ export default function HomePage() {
                 const data = await res.json()
                 if (data.leaderboard) {
                     // Get the actual battles from leaderboard
-                    const battleIds = data.leaderboard.slice(0, 5).map((entry: any) => entry.id)
+                    const battleIds = data.leaderboard.slice(0, 5).map((entry: { id: string }) => entry.id)
                     const battles = await Promise.all(
                         battleIds.map(async (id: string) => {
                             const response = await fetch(`/api/battle/${id}`)
@@ -81,9 +81,10 @@ export default function HomePage() {
                 throw new Error('Invalid server response: No battle ID')
             }
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Roast Start Error:', err)
-            setError(err.message || 'Network error. Please try again.')
+            const errorMessage = err instanceof Error ? err.message : 'Network error. Please try again.'
+            setError(errorMessage)
             setIsLoading(false)
         }
     }

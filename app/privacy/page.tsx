@@ -19,7 +19,7 @@ export default function PrivacyPage() {
                 <section>
                     <h2 className="text-2xl font-bold text-white mb-3">2. AI Usage</h2>
                     <p>
-                        All roast generations are processed through OpenAI's API. Your topics are sent to OpenAI
+                        All roast generations are processed through OpenAI&apos;s API. Your topics are sent to OpenAI
                         for generation purposes only and are not stored by third parties.
                     </p>
                 </section>
