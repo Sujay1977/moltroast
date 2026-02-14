@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import type { Battle } from '@/types/battle'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
     try {
+        const { prisma } = await import('@/lib/db')
         const { searchParams } = new URL(request.url)
         const limit = parseInt(searchParams.get('limit') || '20')
 

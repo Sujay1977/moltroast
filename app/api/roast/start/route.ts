@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
-import { prisma } from "@/lib/db";
+import { type OpenAI } from "openai";
 
 // Ensure Node.js runtime (Vercel compatible)
 export const runtime = "nodejs";
 export const dynamic = 'force-dynamic'
-
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
 
 interface RoastRequestBody {
     topic: string;
@@ -18,6 +13,14 @@ interface RoastRequestBody {
 
 export async function POST(req: Request) {
     try {
+        // Lazy load dependencies
+        const { prisma } = await import("@/lib/db");
+        const { OpenAI } = await import("openai");
+
+        const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
+
         // 1. Validate Request Body
         const body = (await req.json().catch(() => null)) as RoastRequestBody | null;
 
