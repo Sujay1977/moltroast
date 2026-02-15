@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Battle" ALTER COLUMN "status" SET DEFAULT 'IN_PROGRESS';

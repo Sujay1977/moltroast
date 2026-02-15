@@ -1,5 +1,5 @@
 // String literal type for battle status (SQLite-compatible)
-export type BattleStatus = "GENERATING" | "COMPLETE"
+export type BattleStatus = "GENERATING" | "IN_PROGRESS" | "COMPLETE" | "FAILED"
 
 export interface Battle {
     id: string

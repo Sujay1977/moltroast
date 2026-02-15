@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Twitter, Copy, Home } from 'lucide-react'
 import WinnerBanner from '@/components/WinnerBanner'
@@ -19,61 +19,95 @@ export default function BattlePage() {
     const [showWinner, setShowWinner] = useState(false)
     const [copied, setCopied] = useState(false)
 
+    const fetchBattle = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/battle/${battleId}`)
+            if (!res.ok) throw new Error('Failed to fetch')
+
+            const data = await res.json()
+            if (data.battle) {
+                setBattle(data.battle)
+                return data.battle
+            } else {
+                setError('Battle not found')
+                return null
+            }
+        } catch {
+            setError('Failed to load battle')
+            return null
+        } finally {
+            setLoading(false)
+        }
+    }, [battleId])
+
+    // Initial fetch + Polling Logic
     useEffect(() => {
-        const fetchBattle = async () => {
-            try {
-                const res = await fetch(`/api/battle/${battleId}`)
-                const data = await res.json()
+        if (!battleId) return
 
-                if (data.battle) {
-                    setBattle(data.battle)
+        let intervalId: NodeJS.Timeout
 
-                    // Increment views
-                    await fetch('/api/roast/view', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ battleId }),
-                    })
+        const init = async () => {
+            const b = await fetchBattle()
 
-                    // Start sequential animation
-                    setTimeout(() => setVisibleRounds(1), 500)
-                    setTimeout(() => setVisibleRounds(2), 1700) // 500 + 1200
-                    setTimeout(() => setVisibleRounds(3), 2900) // 1700 + 1200
-                    setTimeout(() => setShowJury(true), 3900) // 2900 + 1000
-                    setTimeout(() => setShowWinner(true), 4400) // 3900 + 500
-                } else {
-                    setError('Battle not found')
-                }
-            } catch {
-                setError('Failed to load battle')
-            } finally {
-                setLoading(false)
+            // If still in progress, poll every 3s
+            if (b && (b.status === 'IN_PROGRESS' || b.status === 'GENERATING')) {
+                intervalId = setInterval(async () => {
+                    const updated = await fetchBattle()
+                    if (updated && updated.status === 'COMPLETE') {
+                        clearInterval(intervalId)
+                    }
+                    if (updated && updated.status === 'FAILED') {
+                        clearInterval(intervalId)
+                        setError('Battle generation failed')
+                    }
+                }, 3000)
             }
         }
 
-        if (battleId) {
-            fetchBattle()
+        init()
+
+        return () => {
+            if (intervalId) clearInterval(intervalId)
         }
-    }, [battleId])
+    }, [battleId, fetchBattle])
+
+    // Animation Effect - Only runs once when status becomes COMPLETE
+    useEffect(() => {
+        if (battle?.status === 'COMPLETE' && visibleRounds === 0) {
+            // Increment views only once
+            fetch('/api/roast/view', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ battleId }),
+            }).catch(() => { }) // Ignore errors
+
+            // Start sequential animation
+            const t1 = setTimeout(() => setVisibleRounds(1), 500)
+            const t2 = setTimeout(() => setVisibleRounds(2), 1700)
+            const t3 = setTimeout(() => setVisibleRounds(3), 2900)
+            const t4 = setTimeout(() => setShowJury(true), 3900)
+            const t5 = setTimeout(() => setShowWinner(true), 4400)
+
+            return () => {
+                clearTimeout(t1)
+                clearTimeout(t2)
+                clearTimeout(t3)
+                clearTimeout(t4)
+                clearTimeout(t5)
+            }
+        }
+    }, [battle?.status, battleId, visibleRounds]) // Added battleId to dependency as it is used inside
 
     const handleTweet = async () => {
         if (!battle) return
 
-        // Increment share count
         await fetch('/api/share', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ battleId }),
-        })
+        }).catch(() => { })
 
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-        const tweetText = `These AIs just destroyed each other roasting '${battle.topic}' 🔥
-
-Winner: ${battle.winner} (${battle.score}/100)
-
-Who actually won?
-
-${siteUrl}/battle/${battle.id}`
+        const tweetText = `These AIs just destroyed each other roasting '${battle.topic}' 🔥\n\nWinner: ${battle.winner} (${battle.score}/100)\n\nWho actually won?\n\n${siteUrl}/battle/${battle.id}`
 
         window.open(
             `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`,
@@ -84,46 +118,37 @@ ${siteUrl}/battle/${battle.id}`
     const handleClipIt = () => {
         if (!battle) return
 
-        const script = `🔥 ROAST BATTLE: ${battle.topic}
-
-Round 1 - ${battle.agentA}:
-"${battle.round1}"
-
-Round 2 - ${battle.agentB}:
-"${battle.round2}"
-
-Round 3 - ${battle.agentA}:
-"${battle.round3}"
-
-🏆 JURY VERDICT:
-Winner: ${battle.winner}
-Score: ${battle.score}/100
-"${battle.verdict}"
-
-MoltRoast.com - Where AI Agents Roast Scores`
+        const script = `🔥 ROAST BATTLE: ${battle.topic}\n\nRound 1 - ${battle.agentA}:\n"${battle.round1}"\n\nRound 2 - ${battle.agentB}:\n"${battle.round2}"\n\nRound 3 - ${battle.agentA}:\n"${battle.round3}"\n\n🏆 JURY VERDICT:\nWinner: ${battle.winner}\nScore: ${battle.score}/100\n"${battle.verdict}"\n\nMoltRoast.com`
 
         navigator.clipboard.writeText(script)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
     }
 
-    if (loading) {
+    // LOADING STATE (Initial or In Progress)
+    if (loading || (battle && (battle.status === 'IN_PROGRESS' || battle.status === 'GENERATING'))) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-white/10 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-white/60">Loading battle...</p>
+                    <h2 className="text-2xl font-bold text-white mb-2">
+                        {battle ? 'Roasting in Progress...' : 'Loading Arena...'}
+                    </h2>
+                    <p className="text-white/60 animate-pulse">
+                        Generating brutal comebacks...
+                    </p>
                 </div>
             </div>
         )
     }
 
-    if (error || !battle) {
+    // ERROR STATE
+    if (error || !battle || battle.status === 'FAILED') {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <h1 className="text-4xl font-bold text-red-500 mb-4">⚠️ Battle Not Found</h1>
-                    <p className="text-white/60 mb-8">{error || 'This battle does not exist'}</p>
+                    <h1 className="text-4xl font-bold text-red-500 mb-4">⚠️ Battle Failed</h1>
+                    <p className="text-white/60 mb-8">{error || 'Something went wrong in the arena.'}</p>
                     <button
                         onClick={() => router.push('/')}
                         className="bg-primary hover:bg-red-700 text-white px-6 py-3 rounded-lg font-bold"
@@ -135,6 +160,7 @@ MoltRoast.com - Where AI Agents Roast Scores`
         )
     }
 
+    // COMPLETE STATE
     return (
         <div className="max-w-5xl mx-auto px-4 py-12">
             {/* Title */}
@@ -151,14 +177,12 @@ MoltRoast.com - Where AI Agents Roast Scores`
 
             {/* Chat Bubbles */}
             <div className="space-y-8 mb-12">
-                {/* Round 1 - Agent A (Red) */}
-                {visibleRounds >= 1 && battle.round1 && (
+                {/* Round 1 - Agent A */}
+                {visibleRounds >= 1 && (
                     <div className="flex justify-start animate-slide-up">
                         <div className="max-w-2xl">
                             <div className="flex items-center gap-2 mb-2">
-                                <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-bold text-sm">
-                                    A
-                                </div>
+                                <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-bold text-sm">A</div>
                                 <span className="text-red-400 font-bold text-sm">{battle.agentA}</span>
                             </div>
                             <div className="chat-bubble-red animate-fade-in">
@@ -168,15 +192,13 @@ MoltRoast.com - Where AI Agents Roast Scores`
                     </div>
                 )}
 
-                {/* Round 2 - Agent B (Blue) */}
-                {visibleRounds >= 2 && battle.round2 && (
+                {/* Round 2 - Agent B */}
+                {visibleRounds >= 2 && (
                     <div className="flex justify-end animate-slide-up">
                         <div className="max-w-2xl">
                             <div className="flex items-center gap-2 mb-2 justify-end">
                                 <span className="text-blue-400 font-bold text-sm">{battle.agentB}</span>
-                                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">
-                                    B
-                                </div>
+                                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">B</div>
                             </div>
                             <div className="chat-bubble-blue animate-fade-in">
                                 <p className="text-white">{battle.round2}</p>
@@ -185,14 +207,12 @@ MoltRoast.com - Where AI Agents Roast Scores`
                     </div>
                 )}
 
-                {/* Round 3 - Agent A (Red) */}
+                {/* Round 3 - Agent A */}
                 {visibleRounds >= 3 && battle.round3 && (
                     <div className="flex justify-start animate-slide-up">
                         <div className="max-w-2xl">
                             <div className="flex items-center gap-2 mb-2">
-                                <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-bold text-sm">
-                                    A
-                                </div>
+                                <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center font-bold text-sm">A</div>
                                 <span className="text-red-400 font-bold text-sm">{battle.agentA}</span>
                             </div>
                             <div className="chat-bubble-red animate-fade-in">
@@ -204,13 +224,13 @@ MoltRoast.com - Where AI Agents Roast Scores`
             </div>
 
             {/* Jury Verdict */}
-            {showJury && battle.winner && battle.score !== null && battle.verdict && (
+            {showJury && (
                 <div className="bg-card-dark border border-accent-cyan/30 rounded-xl p-8 mb-12 animate-fade-in">
                     <div className="text-center mb-6">
                         <div className="inline-block bg-accent-cyan/20 text-accent-cyan text-xs font-black px-3 py-1 rounded-full uppercase mb-4">
                             ⚖️ Verdict Incoming
                         </div>
-                        <h3 className="text-2xl font-bold text-white mb-2">JURY SAYS: WINNER {battle.winner.toUpperCase()}</h3>
+                        <h3 className="text-2xl font-bold text-white mb-2">JURY SAYS: WINNER {battle.winner?.toUpperCase()}</h3>
                         <div className="text-5xl font-black text-accent-cyan mb-4">{battle.score}<span className="text-2xl">/100</span></div>
                         <p className="text-white/80 italic text-lg">&quot;{battle.verdict}&quot;</p>
                     </div>
@@ -218,9 +238,9 @@ MoltRoast.com - Where AI Agents Roast Scores`
             )}
 
             {/* Winner Banner */}
-            {showWinner && battle.winner && battle.score !== null && (
+            {showWinner && battle.winner && (
                 <div className="mb-12">
-                    <WinnerBanner winner={battle.winner} score={battle.score} />
+                    <WinnerBanner winner={battle.winner} score={battle.score || 0} />
                 </div>
             )}
 

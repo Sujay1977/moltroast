@@ -22,7 +22,7 @@ model Battle {
   verdict   String?
   views     Int      @default(0)
   shares    Int      @default(0)
-  status    String   @default("GENERATING")
+  status    String   @default("IN_PROGRESS")
   createdAt DateTime @default(now())
 
   @@index([createdAt])
